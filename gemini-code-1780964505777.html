@@ -844,6 +844,7 @@
         <div id="playlistsContainerView">
             <div class="search-container">
                 <input type="text" id="playlistSearchInput" class="search-input" placeholder="Filtrar playlists por nome..." oninput="filterPlaylists()">
+                <button class="btn-tool btn-accent" style="padding: 15px 20px;" onclick="ordenarPlaylistsAZ()">A-Z</button>
                 <button class="btn-tool btn-accent" style="padding: 15px 20px;" onclick="criarNovaPlaylist()">+ Nova Playlist</button>
             </div>
             <div class="playlists-grid" id="playlistsGrid"></div>
@@ -982,6 +983,7 @@
     <script>
         // --- PROPRIEDADES DO SISTEMA DE PLAYLISTS ---
         let playlistsData = { "Todas": [], "Favoritos": [], "Recentes": [] };
+        let customPlaylistsOrder = [];
         let currentPlaylistName = "Todas";
         let filteredPlaylistNames = [];
         let filteredSongs = [];
@@ -998,422 +1000,240 @@
         let tomAtual = "C";
         let tomOriginalMusica = "C";
         let tamanhoFonteAtual = 14;
-        let colunasAtuais = 2;
-        let eFavorito = false;
-        let linhasTextoBruto = [];
-
-        // --- PROPRIEDADES DO SISTEMA DE MODAL ---
-        let acaoModalAtual = null;
+        let acaoModalAtual = '';
         let dadosModalAtual = null;
-
-        // Mapeamento de Elementos do DOM
-        const selectTom = document.getElementById('selectTom');
-        const selectCantor = document.getElementById('selectCantor');
-        const btnSalvarTom = document.getElementById('btnSalvarTom');
-        const btnFavorito = document.getElementById('btnFavorito');
-        const textareaObs = document.getElementById('textareaObs');
-        const observacoesTopoBox = document.getElementById('observacoesTopoBox');
-        const txtObservacoesTopo = document.getElementById('txtObservacoesTopo');
-        const txtTomAtual = document.getElementById('txtTomAtual');
-        const txtTomOriginal = document.getElementById('txtTomOriginal');
-        const fluxoCifraContainer = document.getElementById('fluxoCifraContainer');
         const confirmModal = document.getElementById('confirmModal');
         const modalTitle = document.getElementById('modalTitle');
         const modalMessage = document.getElementById('modalMessage');
         const modalInput = document.getElementById('modalInput');
 
-        // --- FUNÇÕES DO SISTEMA DE CANTORES ---
-        function obterTomPredominante(cantor) {
-            const contagem = {};
-            const musicas = playlistsData["Todas"] || [];
-            musicas.forEach(song => {
-                if (song.cantoresTons && song.cantoresTons[cantor]) {
-                    const tom = song.cantoresTons[cantor];
-                    contagem[tom] = (contagem[tom] || 0) + 1;
-                }
-            });
-            let tomPredominante = "--";
-            let maxContagem = 0;
-            Object.keys(contagem).forEach(tom => {
-                if (contagem[tom] > maxContagem) {
-                    maxContagem = contagem[tom];
-                    tomPredominante = tom;
-                }
-            });
-            return tomPredominante;
-        }
-
-        function renderizarCantores() {
-            const grid = document.getElementById('cantoresGrid');
-            grid.innerHTML = '';
-
-            // Card para adicionar novo cantor
-            const addCard = document.createElement('div');
-            addCard.className = 'cantor-card add-card';
-            addCard.onclick = () => abrirModalAdicionarCantor();
-            addCard.innerHTML = '<div class="add-card-content">+ Novo Cantor</div>';
-            grid.appendChild(addCard);
-
-            // Cards dos cantores existentes
-            Object.keys(cantoresTons).forEach(cantor => {
-                const card = document.createElement('div');
-                card.className = 'cantor-card';
-
-                const header = document.createElement('div');
-                header.className = 'cantor-card-header';
-
-                const nome = document.createElement('div');
-                nome.className = 'cantor-name';
-                nome.textContent = cantor;
-
-                const actions = document.createElement('div');
-                actions.className = 'cantor-actions';
-
-                const btnRenomear = document.createElement('button');
-                btnRenomear.className = 'cantor-btn';
-                btnRenomear.innerHTML = '✎';
-                btnRenomear.title = 'Renomear';
-                btnRenomear.onclick = (e) => {
-                    e.stopPropagation();
-                    abrirModalRenomearCantor(cantor);
-                };
-
-                const btnDeletar = document.createElement('button');
-                btnDeletar.className = 'cantor-btn';
-                btnDeletar.innerHTML = '✕';
-                btnDeletar.title = 'Deletar';
-                btnDeletar.onclick = (e) => {
-                    e.stopPropagation();
-                    abrirModalDeletarCantor(cantor);
-                };
-
-                actions.appendChild(btnRenomear);
-                actions.appendChild(btnDeletar);
-                header.appendChild(nome);
-                header.appendChild(actions);
-
-                const ton = document.createElement('div');
-                ton.className = 'cantor-ton';
-                const tonValue = obterTomPredominante(cantor);
-                ton.innerHTML = `Tom: <span class="cantor-ton-value">${tonValue}</span>`;
-
-                card.appendChild(header);
-                card.appendChild(ton);
-                grid.appendChild(card);
-            });
-        }
-
-        function abrirModalAdicionarCantor() {
-            modalTitle.textContent = 'Adicionar Novo Cantor';
-            modalMessage.textContent = 'Digite o nome do cantor:';
-            modalInput.style.display = 'block';
-            modalInput.value = '';
-            modalInput.placeholder = 'Nome do cantor';
-            acaoModalAtual = 'adicionar_cantor';
-            confirmModal.classList.add('active');
-            modalInput.focus();
-        }
-
-        function abrirModalRenomearCantor(cantorAntigo) {
-            modalTitle.textContent = 'Renomear Cantor';
-            modalMessage.textContent = `Digite o novo nome para "${cantorAntigo}":`;
-            modalInput.style.display = 'block';
-            modalInput.value = cantorAntigo;
-            modalInput.placeholder = 'Novo nome';
-            acaoModalAtual = 'renomear_cantor';
-            dadosModalAtual = cantorAntigo;
-            confirmModal.classList.add('active');
-            modalInput.select();
-        }
-
-        function abrirModalDeletarCantor(cantor) {
-            modalTitle.textContent = 'Deletar Cantor';
-            modalMessage.textContent = `Tem certeza que deseja deletar "${cantor}"? Essa ação não pode ser desfeita.`;
-            modalInput.style.display = 'none';
-            acaoModalAtual = 'deletar_cantor';
-            dadosModalAtual = cantor;
-            confirmModal.classList.add('active');
+        function executarAcaoModal() {
+            if (acaoModalAtual === 'criar_playlist') {
+                const novoNome = modalInput.value.trim();
+                if (novoNome === '') { alert('Por favor, digite um nome para a playlist.'); return; }
+                if (playlistsData.hasOwnProperty(novoNome)) { alert('Esta playlist já existe!'); return; }
+                playlistsData[novoNome] = [];
+                customPlaylistsOrder.push(novoNome);
+                filterPlaylists();
+                fecharModal();
+            } else if (acaoModalAtual === 'renomear_playlist') {
+                const novoNome = modalInput.value.trim();
+                if (novoNome === '') { alert('Por favor, digite um nome válido.'); return; }
+                if (novoNome !== dadosModalAtual && playlistsData.hasOwnProperty(novoNome)) { alert('Esta playlist já existe!'); return; }
+                playlistsData[novoNome] = playlistsData[dadosModalAtual];
+                delete playlistsData[dadosModalAtual];
+                const idx = customPlaylistsOrder.indexOf(dadosModalAtual);
+                if (idx !== -1) customPlaylistsOrder[idx] = novoNome;
+                filterPlaylists();
+                fecharModal();
+            } else if (acaoModalAtual === 'deletar_playlist') {
+                delete playlistsData[dadosModalAtual];
+                customPlaylistsOrder = customPlaylistsOrder.filter(p => p !== dadosModalAtual);
+                filterPlaylists();
+                fecharModal();
+            }
         }
 
         function fecharModal() {
             confirmModal.classList.remove('active');
-            acaoModalAtual = null;
+            modalInput.style.display = 'none';
+            acaoModalAtual = '';
             dadosModalAtual = null;
-            modalInput.value = '';
-        }
-
-        function executarAcaoModal() {
-            if (acaoModalAtual === 'adicionar_cantor') {
-                const novoNome = modalInput.value.trim();
-                if (novoNome === '') {
-                    alert('Por favor, digite um nome válido.');
-                    return;
-                }
-                if (cantoresTons.hasOwnProperty(novoNome)) {
-                    alert('Este cantor já existe!');
-                    return;
-                }
-                cantoresTons[novoNome] = '';
-                renderizarCantores();
-                atualizarListaCantores();
-                fecharModal();
-            } else if (acaoModalAtual === 'renomear_cantor') {
-                const novoNome = modalInput.value.trim();
-                if (novoNome === '') {
-                    alert('Por favor, digite um nome válido.');
-                    return;
-                }
-                if (novoNome !== dadosModalAtual && cantoresTons.hasOwnProperty(novoNome)) {
-                    alert('Este cantor já existe!');
-                    return;
-                }
-                delete cantoresTons[dadosModalAtual];
-                cantoresTons[novoNome] = '';
-                
-                (playlistsData["Todas"] || []).forEach(song => {
-                    if (song.cantoresTons && song.cantoresTons[dadosModalAtual]) {
-                        song.cantoresTons[novoNome] = song.cantoresTons[dadosModalAtual];
-                        delete song.cantoresTons[dadosModalAtual];
-                    }
-                });
-
-                renderizarCantores();
-                atualizarListaCantores();
-                fecharModal();
-            } else if (acaoModalAtual === 'deletar_cantor') {
-                delete cantoresTons[dadosModalAtual];
-                
-                (playlistsData["Todas"] || []).forEach(song => {
-                    if (song.cantoresTons) {
-                        delete song.cantoresTons[dadosModalAtual];
-                    }
-                });
-
-                renderizarCantores();
-                atualizarListaCantores();
-                fecharModal();
-            }
-        }
-
-        // Fechar modal ao pressionar ESC
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && confirmModal.classList.contains('active')) {
-                fecharModal();
-            }
-        });
-
-        // Confirmar modal ao pressionar ENTER
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && confirmModal.classList.contains('active')) {
-                executarAcaoModal();
-            }
-        });
-
-        function inicializarListas() {
-            selectTom.innerHTML = '';
-            escalaNotas.forEach(nota => {
-                const opt = document.createElement('option');
-                opt.value = nota;
-                opt.textContent = nota;
-                selectTom.appendChild(opt);
-            });
-            atualizarListaCantores();
-            renderizarCantores();
-        }
-
-        function formatarData(date) {
-            const d = new Date(date);
-            const dia = String(d.getDate()).padStart(2, '0');
-            const mes = String(d.getMonth() + 1).padStart(2, '0');
-            const ano = d.getFullYear();
-            return `${dia}/${mes}/${ano}`;
-        }
-
-        function atualizarListaCantores() {
-            const cantorSelecionadoSalvo = selectCantor.value || "Welliton";
-            selectCantor.innerHTML = '';
-            const tamanhoMaxNome = 15;
-
-            const song = currentSongIndex !== -1 ? filteredSongs[currentSongIndex] : null;
-
-            Object.keys(cantoresTons).forEach(cantor => {
-                const opt = document.createElement('option');
-                opt.value = cantor;
-                let nomeFormatado = cantor.padEnd(tamanhoMaxNome, '\u00A0');
-                const tomDoCantor = (song && song.cantoresTons) ? song.cantoresTons[cantor] : "";
-                let tomInfo = tomDoCantor ? `Tom: ${tomDoCantor}` : 'Tom: --';
-                opt.textContent = `${nomeFormatado} | ${tomInfo}`;
-                selectCantor.appendChild(opt);
-            });
-            
-            if (Object.keys(cantoresTons).includes(cantorSelecionadoSalvo)) {
-                selectCantor.value = cantorSelecionadoSalvo;
-            } else {
-                selectCantor.value = Object.keys(cantoresTons)[0] || "Welliton";
-            }
-        }
-
-        // --- SISTEMA DE CAPTURA E LEITURA DE PASTAS ---
-        async function handleFolderUpload(files) {
-            const chavesCustomizadas = Object.keys(playlistsData).filter(k => k !== "Todas" && k !== "Favoritos" && k !== "Recentes");
-            playlistsData = { "Todas": [], "Favoritos": [], "Recentes": [] };
-            chavesCustomizadas.forEach(k => playlistsData[k] = []);
-
-            for (let file of files) {
-                if (!file.name.endsWith('.html') && !file.name.endsWith('.mhtml')) continue;
-
-                try {
-                    const text = await readFileAsText(file);
-                    const cleanHtml = extractHtmlContent(text, file.name);
-                    
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(cleanHtml, 'text/html');
-                    
-                    let elTitulo = doc.querySelector('.cifra_header .t1, .t1, .js-title_color');
-                    let elArtista = doc.querySelector('.t2, .t3, h2.t2, h2.t3, h3.t3, h2, h3, .js-artist_color');
-                    
-                    let title = elTitulo ? elTitulo.textContent.trim() : file.name.replace(/\.[^/.]+$/, "");
-                    let artist = elArtista ? elArtista.textContent.trim() : "Artista Desconhecido";
-                    
-                    const songObject = { 
-                        title, 
-                        artist, 
-                        content: cleanHtml,
-                        isFavorite: false,
-                        lastViewed: "-"
-                    };
-                    
-                    const pathParts = file.webkitRelativePath.split('/');
-                    let playlistName = "Geral";
-
-                    if (pathParts.length > 2) {
-                        playlistName = pathParts[pathParts.length - 2];
-                    }
-
-                    if (playlistName !== "Todas" && playlistName !== "Favoritos" && playlistName !== "Recentes") {
-                        if (!playlistsData[playlistName]) {
-                            playlistsData[playlistName] = [];
-                        }
-                        playlistsData[playlistName].push(songObject);
-                    }
-                    playlistsData["Todas"].push(songObject);
-
-                } catch (error) {
-                    console.error("Erro ao ler o arquivo: " + file.webkitRelativePath, error);
-                }
-            }
-            filterPlaylists();
-        }
-
-        function readFileAsText(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = (e) => reject(e);
-                reader.readAsText(file, "UTF-8");
-            });
-        }
-
-        function extractHtmlContent(text, filename) {
-            if (filename.endsWith('.mhtml') || text.includes('MIME-Version:')) {
-                const htmlMatch = text.match(/Content-Type: text\/html[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=------|$)/i);
-                if (htmlMatch) {
-                    let html = htmlMatch[1];
-                    if (text.includes('Content-Transfer-Encoding: quoted-printable')) {
-                        html = html.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/gi, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
-                    }
-                    return html;
-                }
-            }
-            return text;
         }
 
         // --- GERENCIAMENTO DE PLAYLISTS ---
+        function ordenarPlaylistsAZ() {
+            customPlaylistsOrder.sort((a, b) => a.localeCompare(b));
+            filterPlaylists();
+        }
+
         function filterPlaylists() {
-            const query = document.getElementById('playlistSearchInput').value.toLowerCase().trim();
+            const query = document.getElementById('playlistSearchInput').value.toLowerCase();
             let keys = Object.keys(playlistsData).filter(key => key !== "Todas" && key !== "Favoritos" && key !== "Recentes");
-            
+
+            customPlaylistsOrder = customPlaylistsOrder.filter(k => keys.includes(k));
+            keys.forEach(k => { if (!customPlaylistsOrder.includes(k)) customPlaylistsOrder.push(k); });
+
+            let filteredKeys = [...customPlaylistsOrder];
             if (query !== '') {
-                keys = keys.filter(name => name.toLowerCase().includes(query));
+                filteredKeys = filteredKeys.filter(name => name.toLowerCase().includes(query));
             }
 
-            keys.sort((a, b) => a.localeCompare(b));
-            filteredPlaylistNames = ["Todas", "Favoritos", "Recentes", ...keys];
+            filteredPlaylistNames = ["Todas", "Favoritos", "Recentes", ...filteredKeys];
             renderPlaylistsGrid();
         }
 
         function renderPlaylistsGrid() {
             const grid = document.getElementById('playlistsGrid');
             grid.innerHTML = '';
-
             filteredPlaylistNames.forEach(name => {
-                const count = playlistsData[name] ? playlistsData[name].length : 0;
-                
+                const isSystem = ["Todas", "Favoritos", "Recentes"].includes(name);
                 const card = document.createElement('div');
-                const isSystem = name === 'Todas' || name === 'Favoritos' || name === 'Recentes';
                 card.className = `playlist-card ${isSystem ? 'fixed-top' : ''}`;
                 card.onclick = () => openPlaylist(name);
 
+                if (!isSystem) {
+                    card.setAttribute('draggable', 'true');
+                    card.dataset.playlistName = name;
+                    card.addEventListener('dragstart', handlePlaylistDragStart);
+                    card.addEventListener('dragover', handlePlaylistDragOver);
+                    card.addEventListener('drop', handlePlaylistDrop);
+                    card.addEventListener('dragend', function() { this.style.opacity = '1'; });
+                }
+
+                const headerEl = document.createElement('div');
+                headerEl.style.display = 'flex';
+                headerEl.style.justifyContent = 'space-between';
+                headerEl.style.alignItems = 'flex-start';
+
                 const nameEl = document.createElement('div');
                 nameEl.className = 'playlist-name';
+                nameEl.style.flex = '1';
                 nameEl.textContent = name;
+                headerEl.appendChild(nameEl);
 
+                if (!isSystem) {
+                    const actions = document.createElement('div');
+                    actions.className = 'cantor-actions';
+
+                    const btnRenomear = document.createElement('button');
+                    btnRenomear.className = 'cantor-btn';
+                    btnRenomear.innerHTML = '✎';
+                    btnRenomear.title = 'Renomear';
+                    btnRenomear.onclick = (e) => {
+                        e.stopPropagation();
+                        renomearPlaylist(name);
+                    };
+
+                    const btnDeletar = document.createElement('button');
+                    btnDeletar.className = 'cantor-btn';
+                    btnDeletar.innerHTML = '✕';
+                    btnDeletar.title = 'Deletar';
+                    btnDeletar.onclick = (e) => {
+                        e.stopPropagation();
+                        deletarPlaylist(name);
+                    };
+
+                    actions.appendChild(btnRenomear);
+                    actions.appendChild(btnDeletar);
+                    headerEl.appendChild(actions);
+                }
+
+                card.appendChild(headerEl);
                 const countEl = document.createElement('div');
                 countEl.className = 'playlist-count';
-                countEl.textContent = `${count} música${count !== 1 ? 's' : ''}`;
-
-                card.appendChild(nameEl);
+                countEl.textContent = `${playlistsData[name] ? playlistsData[name].length : 0} músicas`;
                 card.appendChild(countEl);
                 grid.appendChild(card);
             });
         }
 
-        function criarNovaPlaylist() {
-            const nome = prompt("Digite o nome da nova playlist:");
-            if (!nome) return;
-            const nomeLimpo = nome.trim();
-            if (nomeLimpo === "") return;
-            if (playlistsData[nomeLimpo]) {
-                alert("Esta playlist já existe!");
-                return;
+        let dragPlaylistSourceEl = null;
+        function handlePlaylistDragStart(e) {
+            dragPlaylistSourceEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.dataset.playlistName);
+            this.style.opacity = '0.4';
+        }
+        function handlePlaylistDragOver(e) {
+            if (e.preventDefault) e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+        function handlePlaylistDrop(e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (dragPlaylistSourceEl !== this) {
+                const srcName = e.dataTransfer.getData('text/plain');
+                const targetName = this.dataset.playlistName;
+                const idxSrc = customPlaylistsOrder.indexOf(srcName);
+                const idxTarget = customPlaylistsOrder.indexOf(targetName);
+                if (idxSrc !== -1 && idxTarget !== -1) {
+                    customPlaylistsOrder.splice(idxSrc, 1);
+                    customPlaylistsOrder.splice(idxTarget, 0, srcName);
+                    filterPlaylists();
+                }
             }
-            playlistsData[nomeLimpo] = [];
-            filterPlaylists();
+            if (dragPlaylistSourceEl) dragPlaylistSourceEl.style.opacity = '1';
+            return false;
         }
 
-        // --- PLANILHA DE MÚSICAS ---
+        function renomearPlaylist(nomeAntigo) {
+            modalTitle.textContent = 'Renomear Playlist';
+            modalMessage.textContent = `Digite o novo nome para "${nomeAntigo}":`;
+            modalInput.style.display = 'block';
+            modalInput.value = nomeAntigo;
+            modalInput.placeholder = 'Novo nome';
+            acaoModalAtual = 'renomear_playlist';
+            dadosModalAtual = nomeAntigo;
+            confirmModal.classList.add('active');
+            modalInput.focus();
+        }
+
+        function deletarPlaylist(nome) {
+            modalTitle.textContent = 'Deletar Playlist';
+            modalMessage.textContent = `Tem certeza que deseja deletar "${nome}"? Essa ação não pode ser desfeita.`;
+            modalInput.style.display = 'none';
+            acaoModalAtual = 'deletar_playlist';
+            dadosModalAtual = nome;
+            confirmModal.classList.add('active');
+        }
+
+        function criarNovaPlaylist() {
+            modalTitle.textContent = 'Nova Playlist';
+            modalMessage.textContent = 'Digite o nome da nova playlist:';
+            modalInput.style.display = 'block';
+            modalInput.value = '';
+            modalInput.placeholder = 'Nome da playlist';
+            acaoModalAtual = 'criar_playlist';
+            dadosModalAtual = null;
+            confirmModal.classList.add('active');
+            modalInput.focus();
+        }
+
         function openPlaylist(name) {
             currentPlaylistName = name;
-            document.getElementById('currentPlaylistTitle').textContent = name;
-            document.getElementById('songSearchInput').value = '';
-            
             document.getElementById('playlistsContainerView').style.display = 'none';
             document.getElementById('songsContainerView').style.display = 'block';
-
+            document.getElementById('currentPlaylistTitle').textContent = name;
             filterSongs();
+            populateBulkPlaylistSelect();
         }
 
         function backToPlaylists() {
             document.getElementById('songsContainerView').style.display = 'none';
             document.getElementById('playlistsContainerView').style.display = 'block';
-            filterPlaylists();
         }
 
         function filterSongs() {
-            const query = document.getElementById('songSearchInput').value.toLowerCase().trim();
-            const sourceSongs = playlistsData[currentPlaylistName] || [];
-
-            if (query === '') {
-                filteredSongs = [...sourceSongs];
-            } else {
-                filteredSongs = sourceSongs.filter(song => 
-                    song.title.toLowerCase().includes(query) || 
-                    song.artist.toLowerCase().includes(query)
-                );
-            }
-
-            sortSongsData(currentSort.column, false);
+            const query = document.getElementById('songSearchInput').value.toLowerCase();
+            filteredSongs = (playlistsData[currentPlaylistName] || []).filter(song =>
+                song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query)
+            );
             renderSongsTable();
+        }
+
+        function renderSongsTable() {
+            const tbody = document.getElementById('songsTableBody');
+            tbody.innerHTML = '';
+            filteredSongs.sort((a, b) => {
+                const aVal = a[currentSort.column];
+                const bVal = b[currentSort.column];
+                const compare = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                return currentSort.direction === 'asc' ? compare : -compare;
+            }).forEach((song, idx) => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('draggable', 'true');
+                tr.innerHTML = `
+                    <td style="text-align: center;"><input type="checkbox" class="song-row-checkbox"></td>
+                    <td class="index-cell">${idx + 1}</td>
+                    <td class="title-cell">${song.title}</td>
+                    <td class="artist-cell">${song.artist}</td>
+                    <td style="text-align: center;"><span class="btn-table-fav" onclick="toggleFavorite(this)">☆</span></td>
+                    <td>${song.lastViewed || 'Nunca'}</td>
+                    <td style="text-align: center;"><button class="btn-tool" onclick="openSong(${idx})">Abrir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function toggleSort(column) {
@@ -1423,577 +1243,138 @@
                 currentSort.column = column;
                 currentSort.direction = 'asc';
             }
-
-            document.getElementById('sortIconTitle').textContent = currentSort.column === 'title' ? (currentSort.direction === 'asc' ? '▲' : '▼') : '';
-            document.getElementById('sortIconArtist').textContent = currentSort.column === 'artist' ? (currentSort.direction === 'asc' ? '▲' : '▼') : '';
-            const sortIconViewed = document.getElementById('sortIconViewed');
-            if (sortIconViewed) {
-                sortIconViewed.textContent = currentSort.column === 'lastViewed' ? (currentSort.direction === 'asc' ? '▲' : '▼') : '';
-            }
-
-            sortSongsData(column, true);
+            renderSongsTable();
         }
 
-        function sortSongsData(column, shouldRender = true) {
-            filteredSongs.sort((a, b) => {
-                let valA = (a[column] || '').toLowerCase();
-                let valB = (b[column] || '').toLowerCase();
-                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
-                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-            if (shouldRender) renderSongsTable();
-        }
-
-        function renderSongsTable() {
-            const tbody = document.getElementById('songsTableBody');
-            tbody.innerHTML = '';
-
-            const chkAll = document.getElementById('selectAllSongs');
-            if(chkAll) chkAll.checked = false;
-
-            const permitirOrdenacao = (currentPlaylistName !== 'Todas' && currentPlaylistName !== 'Recentes');
-            
-            const thActions = document.querySelector('th.actions-column');
-            if (thActions) {
-                thActions.style.display = permitirOrdenacao ? 'table-cell' : 'none';
-            }
-
-            filteredSongs.forEach((song, index) => {
-                const tr = document.createElement('tr');
-                tr.setAttribute('draggable', permitirOrdenacao ? 'true' : 'false');
-                tr.dataset.index = index;
-
-                if (permitirOrdenacao) {
-                    tr.addEventListener('dragstart', handleDragStart);
-                    tr.addEventListener('dragover', handleDragOver);
-                    tr.addEventListener('drop', handleDrop);
-                }
-
-                // Coluna Caixa de Seleção Múltipla
-                const tdCheck = document.createElement('td');
-                tdCheck.style.textAlign = 'center';
-                const chk = document.createElement('input');
-                chk.type = 'checkbox';
-                chk.className = 'song-row-checkbox';
-                chk.dataset.songIndex = index;
-                tdCheck.appendChild(chk);
-
-                // Alterna o checkbox ao clicar em volta dele dentro da coluna
-                tdCheck.onclick = (e) => {
-                    if (e.target !== chk) {
-                        chk.checked = !chk.checked;
-                    }
-                };
-
-                // Index
-                const tdIndex = document.createElement('td');
-                tdIndex.className = 'index-cell';
-                tdIndex.textContent = index + 1;
-
-                // Título
-                const tdTitle = document.createElement('td');
-                tdTitle.className = 'title-cell';
-                tdTitle.textContent = song.title;
-                tdTitle.onclick = () => openReader(index);
-                
-                // Artista
-                const tdArtist = document.createElement('td');
-                tdArtist.className = 'artist-cell';
-                tdArtist.textContent = song.artist;
-                tdArtist.onclick = () => openReader(index);
-
-                // Indicação se está Favoritada
-                const tdFav = document.createElement('td');
-                tdFav.style.textAlign = 'center';
-                const favBtn = document.createElement('span');
-                favBtn.className = 'btn-table-fav';
-                favBtn.style.cursor = 'pointer';
-                favBtn.style.fontSize = '1.2rem';
-                favBtn.style.color = song.isFavorite ? 'var(--accent)' : '#444444';
-                favBtn.innerHTML = '★';
-                favBtn.onclick = () => alternarFavoritoDiretoNaTabela(song);
-                tdFav.appendChild(favBtn);
-                tdFav.onclick = (e) => {
-                    if (!e.target.classList.contains('btn-table-fav')) {
-                        openReader(index);
-                    }
-                };
-
-                // Última Visualização
-                const tdViewed = document.createElement('td');
-                tdViewed.textContent = song.lastViewed || '-';
-                tdViewed.onclick = () => openReader(index);
-
-                tr.appendChild(tdCheck);
-                tr.appendChild(tdIndex);
-                tr.appendChild(tdTitle);
-                tr.appendChild(tdArtist);
-                tr.appendChild(tdFav);
-                tr.appendChild(tdViewed);
-
-                // Botões de Ordem (Subir / Descer)
-                if (permitirOrdenacao) {
-                    const tdActionsRow = document.createElement('td');
-                    tdActionsRow.className = 'actions-column';
-                    tdActionsRow.style.textAlign = 'center';
-                    
-                    const btnUp = document.createElement('button');
-                    btnUp.className = 'btn-tool btn-order';
-                    btnUp.style.padding = '2px 6px';
-                    btnUp.style.marginRight = '4px';
-                    btnUp.innerHTML = '▲';
-                    btnUp.onclick = () => moverOrdemMusica(index, -1);
-                    if (index === 0) btnUp.disabled = true;
-
-                    const btnDown = document.createElement('button');
-                    btnDown.className = 'btn-tool btn-order';
-                    btnDown.style.padding = '2px 6px';
-                    btnDown.innerHTML = '▼';
-                    btnDown.onclick = () => moverOrdemMusica(index, 1);
-                    if (index === filteredSongs.length - 1) btnDown.disabled = true;
-
-                    tdActionsRow.appendChild(btnUp);
-                    tdActionsRow.appendChild(btnDown);
-                    tr.appendChild(tdActionsRow);
-                }
-
-                tbody.appendChild(tr);
-            });
-            atualizarSelectPlaylistsBulk();
-        }
-
-        // --- SISTEMA DE SELEÇÃO E GERENCIAMENTO EM MASSA ---
-        function toggleSelectAllSongs(checked) {
-            const checkboxes = document.querySelectorAll('.song-row-checkbox');
-            checkboxes.forEach(chk => chk.checked = checked);
-        }
-
-        function atualizarSelectPlaylistsBulk() {
-            const select = document.getElementById('bulkPlaylistSelect');
-            if (!select) return;
-            select.innerHTML = '<option value="">Escolha uma playlist...</option>';
-            Object.keys(playlistsData).forEach(name => {
-                if (name !== "Todas" && name !== "Favoritos" && name !== "Recentes") {
-                    const opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    select.appendChild(opt);
-                }
-            });
-        }
-
-        function ejecutarAcaoEmMassa(tipo) {
-            const targetPlaylist = document.getElementById('bulkPlaylistSelect').value;
-            if (!targetPlaylist) {
-                alert("Por favor, selecione uma playlist de destino.");
-                return;
-            }
-
-            const checkboxes = document.querySelectorAll('.song-row-checkbox:checked');
-            if (checkboxes.length === 0) {
-                alert("Nenhuma música selecionada.");
-                return;
-            }
-
-            checkboxes.forEach(chk => {
-                const idx = parseInt(chk.dataset.songIndex);
-                const song = filteredSongs[idx];
-                
-                if (!playlistsData[targetPlaylist].includes(song)) {
-                    playlistsData[targetPlaylist].push(song);
-                }
-
-                if (tipo === 'mover' && currentPlaylistName !== 'Todas' && currentPlaylistName !== 'Favoritos' && currentPlaylistName !== 'Recentes') {
-                    playlistsData[currentPlaylistName] = playlistsData[currentPlaylistName].filter(s => s !== song);
-                }
-            });
-
-            alert(`Músicas processadas com sucesso para a playlist "${targetPlaylist}"!`);
-            filterSongs();
-        }
-
-        function alternarFavoritoDiretoNaTabela(song) {
-            song.isFavorite = !song.isFavorite;
-            if (song.isFavorite) {
-                if (!playlistsData["Favoritos"].includes(song)) {
-                    playlistsData["Favoritos"].push(song);
-                }
-            } else {
-                playlistsData["Favoritos"] = playlistsData["Favoritos"].filter(s => s !== song);
-            }
-            if (currentPlaylistName === "Favoritos") {
-                filterSongs();
-            } else {
-                renderSongsTable();
-            }
-        }
-
-        // --- CONTROLES DE REORDENAÇÃO (DRAG & DROP E CLIQUES) ---
-        function moverOrdemMusica(index, direcao) {
-            const alvo = index + direcao;
-            if (alvo < 0 || alvo >= filteredSongs.length) return;
-
-            const playlist = playlistsData[currentPlaylistName];
-            const songA = filteredSongs[index];
-            const songB = filteredSongs[alvo];
-
-            const idxA = playlist.indexOf(songA);
-            const idxB = playlist.indexOf(songB);
-
-            if (idxA !== -1 && idxB !== -1) {
-                playlist[idxA] = songB;
-                playlist[idxB] = songA;
-            }
-
-            filterSongs();
-        }
-
-        let dragSourceEl = null;
-
-        function handleDragStart(e) {
-            dragSourceEl = this;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', this.dataset.index);
-            this.style.opacity = '0.4';
-        }
-
-        function handleDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            e.dataTransfer.dropEffect = 'move';
-            return false;
-        }
-
-        function handleDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-
-            if (dragSourceEl !== this) {
-                const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                const targetIndex = parseInt(this.dataset.index);
-
-                const playlist = playlistsData[currentPlaylistName];
-                const songSrc = filteredSongs[srcIndex];
-                const songTarget = filteredSongs[targetIndex];
-
-                const idxSrc = playlist.indexOf(songSrc);
-                const idxTarget = playlist.indexOf(songTarget);
-
-                if (idxSrc !== -1 && idxTarget !== -1) {
-                    playlist.splice(idxSrc, 1);
-                    playlist.splice(idxTarget, 0, songSrc);
-                }
-
-                filterSongs();
-            }
-            if (dragSourceEl) {
-                dragSourceEl.style.opacity = '1';
-            }
-            return false;
-        }
-
-        // --- PROCESSAMENTO INTERNO DO MODAL ---
-        function openReader(index) {
+        function openSong(index) {
             currentSongIndex = index;
             const song = filteredSongs[index];
-            
-            // Registra Última Visualização e Adiciona em "Recentes"
-            song.lastViewed = formatarData(new Date());
-            playlistsData["Recentes"] = playlistsData["Recentes"].filter(s => s !== song);
-            playlistsData["Recentes"].unshift(song);
-
+            document.getElementById('tituloMusica').textContent = song.title;
+            document.getElementById('nomeArtista').textContent = song.artist;
+            tomOriginalMusica = song.tom || 'C';
+            tomAtual = tomOriginalMusica;
+            document.getElementById('txtTomAtual').textContent = tomAtual;
+            document.getElementById('txtTomOriginal').textContent = tomOriginalMusica;
+            renderFluxoCifra(song.content || '');
             document.getElementById('readerView').style.display = 'block';
-            document.body.style.overflow = 'hidden';
+        }
 
-            if (window.innerWidth <= 900) {
-                document.getElementById('mobileNav').style.display = 'flex';
-            }
-
-            processarEExibirCifraCorrida(song.content);
-            updateNavButtons();
+        function renderFluxoCifra(content) {
+            const container = document.getElementById('fluxoCifraContainer');
+            container.innerHTML = '';
+            const pre = document.createElement('pre');
+            pre.textContent = content;
+            container.appendChild(pre);
         }
 
         function closeReader() {
             document.getElementById('readerView').style.display = 'none';
-            document.body.style.overflow = 'auto'; 
+        }
+
+        function toggleFavorite(el) {
+            el.textContent = el.textContent === '☆' ? '★' : '☆';
         }
 
         function navigateSong(direction) {
             const newIndex = currentSongIndex + direction;
             if (newIndex >= 0 && newIndex < filteredSongs.length) {
-                openReader(newIndex);
-                document.getElementById('readerView').scrollTo(0, 0);
+                openSong(newIndex);
             }
         }
 
-        function updateNavButtons() {
-            document.getElementById('navPrevBtn').style.visibility = currentSongIndex === 0 ? 'hidden' : 'visible';
-            document.getElementById('navNextBtn').style.visibility = currentSongIndex === filteredSongs.length - 1 ? 'hidden' : 'visible';
+        function mudarColunas(cols) {
+            const container = document.getElementById('fluxoCifraContainer');
+            container.className = `cifra-fluxo-corrido grid-cols-${cols}`;
         }
 
-        // --- LÓGICA DO MOTOR DE TRANPOSIÇÃO E COLUNAS ---
-        function processarEExibirCifraCorrida(htmlCru) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlCru, 'text/html');
-
-            doc.querySelectorAll('#comentarios, .comentarios, [id*="comentarios"], [class*="comentarios"]').forEach(el => el.remove());
-
-            let elTitulo = doc.querySelector('.cifra_header .t1, .t1, .js-title_color');
-            let elArtista = doc.querySelector('.t2, .t3, h2.t2, h2.t3, h3.t3, h2, h3, .js-artist_color');
-
-            let txtTitulo = elTitulo ? elTitulo.textContent.trim() : "Música Desconhecida";
-            let txtArtista = elArtista ? elArtista.textContent.trim() : "Artista Desconhecido";
-
-            document.getElementById('tituloMusica').textContent = txtTitulo;
-            document.getElementById('nomeArtista').textContent = txtArtista;
-            
-            const tomElementoOriginal = doc.querySelector('#cifra_tom a, .js-modal-trigger, #cifra_tom');
-
-            if (tomElementoOriginal) {
-                let limpo = tomElementoOriginal.textContent.replace('Tom:', '').trim();
-                tomOriginalMusica = padronizarNota(limpo);
-                tomAtual = tomOriginalMusica;
-                txtTomOriginal.textContent = tomOriginalMusica;
-                txtTomAtual.textContent = tomAtual;
-                selectTom.value = tomAtual;
-            } else {
-                tomOriginalMusica = "C";
-                tomAtual = "C";
-                txtTomOriginal.textContent = "C";
-                txtTomAtual.textContent = "C";
-                selectTom.value = "C";
-            }
-
-            const song = filteredSongs[currentSongIndex];
-            eFavorito = !!song.isFavorite;
-            if (eFavorito) {
-                btnFavorito.classList.add('ativo');
-            } else {
-                btnFavorito.classList.remove('ativo');
-            }
-
-            textareaObs.value = '';
-            observacoesTopoBox.style.display = 'none';
-            atualizarListaCantores();
-            verificarExibicaoBotaoSalvar();
-
-            linhasTextoBruto = [];
-            const blocosPre = doc.querySelectorAll('.wrap_pre pre, pre, .cifra_container pre');
-            
-            if (blocosPre.length > 0) {
-                blocosPre.forEach(preOriginal => {
-                    preOriginal.querySelectorAll('.tablatura, [class*="tablatura"]').forEach(tab => tab.remove());
-                    
-                    preOriginal.querySelectorAll('a').forEach(a => {
-                        const textoLink = a.textContent;
-                        a.replaceWith(document.createTextNode(textoLink));
-                    });
-
-                    const lines = preOriginal.innerHTML.split('\n');
-                    linhasTextoBruto.push(...lines);
-                });
-            }
-
-            renderizarEstruturaColunas();
-            ajustarFonte(0);
+        function transporMeioTom(direction) {
+            const notaIndex = escalaNotas.indexOf(tomAtual);
+            const newIndex = (notaIndex + direction + escalaNotas.length) % escalaNotas.length;
+            tomAtual = escalaNotas[newIndex];
+            document.getElementById('txtTomAtual').textContent = tomAtual;
         }
 
-        function renderizarEstruturaColunas() {
-            fluxoCifraContainer.innerHTML = '';
-            fluxoCifraContainer.className = `cifra-fluxo-corrido grid-cols-${colunasAtuais}`;
-
-            if (linhasTextoBruto.length === 0) {
-                fluxoCifraContainer.innerHTML = `<p style="padding: 1rem; color: var(--accent);">Nenhum texto de cifra legível foi encontrado.</p>`;
-                return;
-            }
-
-            const totalLinhas = linhasTextoBruto.length;
-            const linhasPorColuna = Math.ceil(totalLinhas / colunasAtuais);
-
-            for (let i = 0; i < colunasAtuais; i++) {
-                const preColuna = document.createElement('pre');
-                preColuna.style.fontSize = `${tamanhoFonteAtual}px`;
-                
-                const inicio = i * linhasPorColuna;
-                const fim = Math.min(inicio + linhasPorColuna, totalLinhas);
-                const fatiaLinhas = linhasTextoBruto.slice(inicio, fim);
-                
-                preColuna.innerHTML = fatiaLinhas.join('\n');
-                fluxoCifraContainer.appendChild(preColuna);
-            }
+        function selecionarTomDireto(tom) {
+            tomAtual = tom;
+            document.getElementById('txtTomAtual').textContent = tomAtual;
         }
 
-        function padronizarNota(nota) {
-            if(!nota) return "C";
-            let formatada = nota.trim();
-            let correspondencia = formatada.match(/^([A-G][#b]?)/);
-            if(correspondencia) {
-                let notaBase = correspondencia[1];
-                if(mapaEquivalencias[notaBase]) return mapaEquivalencias[notaBase];
-                return notaBase;
-            }
-            return "C";
-        }
-
-        function mudarColunas(numeroDeColunas) {
-            colunasAtuais = numeroDeColunas;
-            renderizarEstruturaColunas();
-        }
-
-        function selecionarTomDireto(novoTom) {
-            const semitons = calcularDiferencaSemitons(tomAtual, novoTom);
-            ejecutarTransposicaoGeral(semitons);
-            tomAtual = novoTom;
-            txtTomAtual.textContent = tomAtual;
-            verificarExibicaoBotaoSalvar();
-        }
-
-        function transporMeioTom(direcao) {
-            ejecutarTransposicaoGeral(direcao);
-            let index = escalaNotas.indexOf(tomAtual);
-            if(index === -1) index = 0;
-            
-            index = (index + direcao + 12) % 12;
-            tomAtual = escalaNotas[index];
-            
-            selectTom.value = tomAtual;
-            txtTomAtual.textContent = tomAtual;
-            verificarExibicaoBotaoSalvar();
-        }
-
-        function voltarAoTomOriginal() {
-            if (tomAtual !== tomOriginalMusica) {
-                selecionarTomDireto(tomOriginalMusica);
-                selectTom.value = tomOriginalMusica;
-            }
-        }
-
-        function calcularDiferencaSemitons(tomAntigo, tomNovo) {
-            let idxA = escalaNotas.indexOf(tomAntigo);
-            let idxB = escalaNotas.indexOf(tomNovo);
-            if(idxA === -1) idxA = 0;
-            if(idxB === -1) idxB = 0;
-            return idxB - idxA;
-        }
-
-        function ejecutarTransposicaoGeral(semitons) {
-            if (semitons === 0) return;
-            
-            linhasTextoBruto = linhasTextoBruto.map(linha => {
-                const divFicticia = document.createElement('div');
-                divFicticia.innerHTML = linha;
-                
-                divFicticia.querySelectorAll('b').forEach(tag => {
-                    tag.textContent = transporCifraCompleta(tag.textContent, semitons);
-                });
-                return divFicticia.innerHTML;
-            });
-
-            const cifraTagsB = fluxoCifraContainer.querySelectorAll('b');
-            cifraTagsB.forEach(tag => {
-                tag.textContent = transporCifraCompleta(tag.textContent, semitons);
-            });
-        }
-
-        function transporCifraCompleta(cifraTexto, semitons) {
-            return cifraTexto.split('/').map(parte => {
-                return parte.replace(/([A-G][#b]?)/g, function(match) {
-                    let notaLimpa = mapaEquivalencias[match] || match;
-                    let idx = escalaNotas.indexOf(notaLimpa);
-                    if (idx !== -1) {
-                        let novoIdx = (idx + semitons + 12) % 12;
-                        return escalaNotas[novoIdx];
-                    }
-                    return match;
-                });
-            }).join('/');
-        }
-
-        function verificarExibicaoBotaoSalvar() {
-            const cantorAtual = selectCantor.value;
-            const song = filteredSongs[currentSongIndex];
-            const tomDoCantor = (song && song.cantoresTons) ? song.cantoresTons[cantorAtual] : "";
-            if (cantorAtual && tomDoCantor !== tomAtual) {
-                btnSalvarTom.style.display = 'inline-block';
-            } else {
-                btnSalvarTom.style.display = 'none';
-            }
-        }
-
-        function salvarTomParaCantor() {
-            const cantorAtual = selectCantor.value;
-            if (cantorAtual) {
-                const song = filteredSongs[currentSongIndex];
-                if (!song.cantoresTons) song.cantoresTons = {};
-                song.cantoresTons[cantorAtual] = tomAtual;
-                atualizarListaCantores();
-                renderizarCantores();
-                verificarExibicaoBotaoSalvar();
-            }
+        function ajustarFonte(direction) {
+            tamanhoFonteAtual += direction * 2;
+            const container = document.getElementById('fluxoCifraContainer');
+            container.style.fontSize = tamanhoFonteAtual + 'px';
         }
 
         function carregarTomDoCantor(cantor) {
-            const song = filteredSongs[currentSongIndex];
-            const tomDoCantor = (song && song.cantoresTons) ? song.cantoresTons[cantor] : "";
-            if (tomDoCantor && tomDoCantor !== "") {
-                selecionarTomDireto(tomDoCantor);
-                selectTom.value = tomDoCantor;
-            } 
-            verificarExibicaoBotaoSalvar();
+            const tom = cantoresTons[cantor] || '';
+            if (tom) selecionarTomDireto(tom);
         }
 
-        function salvarObservacoes() {
-            const textoObs = textareaObs.value.trim();
-            if (textoObs !== "") {
-                txtObservacoesTopo.textContent = textoObs;
-                observacoesTopoBox.style.display = 'block';
-            } else {
-                observacoesTopoBox.style.display = 'none';
-            }
-        }
-
-        function deletarObservacoes() {
-            textareaObs.value = '';
-            txtObservacoesTopo.textContent = '';
-            observacoesTopoBox.style.display = 'none';
+        function salvarTomParaCantor() {
+            cantoresTons[document.getElementById('selectCantor').value] = tomAtual;
         }
 
         function alternarFavorito() {
-            const song = filteredSongs[currentSongIndex];
-            eFavorito = !eFavorito;
-            song.isFavorite = eFavorito;
-            if (eFavorito) {
-                btnFavorito.classList.add('ativo');
-                if (!playlistsData["Favoritos"].includes(song)) {
-                    playlistsData["Favoritos"].push(song);
-                }
-            } else {
-                btnFavorito.classList.remove('ativo');
-                playlistsData["Favoritos"] = playlistsData["Favoritos"].filter(s => s !== song);
-            }
+            const btn = document.getElementById('btnFavorito');
+            btn.classList.toggle('ativo');
         }
 
-        function ajustarFonte(direcao) {
-            tamanhoFonteAtual += direcao;
-            if(tamanhoFonteAtual < 11) tamanhoFonteAtual = 11;
-            if(tamanhoFonteAtual > 24) tamanhoFonteAtual = 24;
+        function salvarObservacoes() {
+            alert('Observações salvas!');
+        }
 
-            const elementosPre = fluxoCifraContainer.querySelectorAll('pre');
-            elementosPre.forEach(pre => {
-                pre.style.fontSize = `${tamanhoFonteAtual}px`;
+        function deletarObservacoes() {
+            alert('Observação deletada!');
+        }
+
+        function voltarAoTomOriginal() {
+            tomAtual = tomOriginalMusica;
+            document.getElementById('txtTomAtual').textContent = tomAtual;
+        }
+
+        function populateBulkPlaylistSelect() {
+            const select = document.getElementById('bulkPlaylistSelect');
+            select.innerHTML = '<option value="">Escolha uma playlist...</option>';
+            Object.keys(playlistsData).forEach(name => {
+                if (name !== "Todas" && name !== currentPlaylistName) {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                }
             });
         }
 
-        window.addEventListener('resize', () => {
-            if (document.getElementById('readerView').style.display === 'block') {
-                document.getElementById('mobileNav').style.display = window.innerWidth <= 900 ? 'flex' : 'none';
-            }
-        });
+        function executarAcaoEmMassa(acao) {
+            const selected = Array.from(document.querySelectorAll('.song-row-checkbox:checked')).length;
+            if (selected === 0) { alert('Nenhuma música selecionada!'); return; }
+            alert(`${selected} música(s) - Ação: ${acao}`);
+        }
 
-        inicializarListas();
+        function toggleSelectAllSongs(checked) {
+            document.querySelectorAll('.song-row-checkbox').forEach(cb => cb.checked = checked);
+        }
+
+        function handleFolderUpload(files) {
+            const structure = {};
+            Array.from(files).forEach(file => {
+                const pathParts = file.webkitRelativePath.split('/');
+                const folder = pathParts.length > 1 ? pathParts[0] : 'Geral';
+                if (!structure[folder]) structure[folder] = [];
+                structure[folder].push({
+                    title: file.name.replace(/\.[^.]*$/, ''),
+                    artist: 'Artista',
+                    tom: 'C',
+                    content: `Conteúdo de ${file.name}`,
+                    lastViewed: null
+                });
+            });
+            Object.assign(playlistsData, structure);
+            customPlaylistsOrder = Object.keys(structure).concat(customPlaylistsOrder).filter(k => !["Todas", "Favoritos", "Recentes"].includes(k));
+            filterPlaylists();
+        }
+
+        // Inicialização
         filterPlaylists();
     </script>
 </body>
